@@ -1,0 +1,10 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tem:SearchCurrentInvoice>
+         <tem:username>${headers.WSUsername}</tem:username>
+         <tem:password>${headers.WSPassword}</tem:password>
+         <tem:contract_number>${body.contractNumber}</tem:contract_number>
+      </tem:SearchCurrentInvoice>
+   </soapenv:Body>
+</soapenv:Envelope>

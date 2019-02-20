@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd   http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+	<bean
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
+		id="bean-776b501c-2b08-4c62-9e6e-6986f25cd50a">
+		<property name="locations">
+			<list>
+				<value>
+					classpath:config/DBServer.properties
+				</value>
+				<value>
+					classpath:config/endpoint.properties
+				</value>
+			</list>
+		</property>
+	</bean>
+
+	<bean
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource"
+		id="dataSource">
+		<property name="driverClassName"
+			value="${connection.driverClassName}" />
+		<property name="url" value="${connection.url}" />
+		<property name="username" value="${connection.username}" />
+		<property name="password" value="${connection.password}" />
+	</bean>
+
+	<bean class="org.apache.camel.component.sql.SqlComponent" id="sql">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<bean class="org.apache.camel.component.http4.HttpComponent"
+		id="https" />
+
+	<bean class="org.apache.camel.model.dataformat.Base64DataFormat"
+		id="base64" />
+
+</beans>
+	

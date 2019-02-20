@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.4.0.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+	<import resource="classpath:commonBeans.xml" />
+	<camelContext id="Billing" trace="true"
+		xmlns="http://camel.apache.org/schema/spring"
+		xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+		xmlns:tem="http://tempuri.org/"
+		xmlns:wcf="http://schemas.datacontract.org/2004/07/Wcftest">
+
+		<propertyPlaceholder id="properties"
+			location="classpath:config/endpoint.properties, classpath:config/sql.properties" />
+		<onException id="exceptionNotify">
+			<exception>java.lang.NullPointerException</exception>
+			<to uri="direct:validationRequestError" />
+		</onException>
+		<restConfiguration bindingMode="json"
+			component="jetty" contextPath="/billingAPI" port="3131" scheme="http"
+			skipBindingOnErrorCode="true" apiContextPath="/swagger" apiContextRouteId="swagger" />
+		<rest id="restConfiguration">
+			<post bindingMode="auto" consumes="application/json"
+				id="validateBill" uri="/validateBill">
+				<param name="Authorization" required="true" type="header" />
+				<to uri="direct:validateBill" />
+			</post>
+			<post bindingMode="auto" consumes="application/json"
+				id="validateContract" produces="application/json"
+				uri="/validateContract">
+				<param name="Authorization" required="true" type="header" />
+				<param name="Action" required="true" type="header" />
+				<to uri="direct:validateContract" />
+			</post>
+			<post bindingMode="auto" consumes="application/json"
+				id="doPayment" produces="application/json" uri="/doPayment">
+				<param name="Authorization" required="true" type="header" />
+				<to uri="direct:doPayment" />
+			</post>
+		</rest>
+		<route autoStartup="true" id="validateBill">
+			<from id="_from1" uri="direct:validateBill" />
+			<setHeader headerName="billSerialNumber" id="_setHeader1">
+				<groovy>def x = request.body.get('billSerialNumber') as String;</groovy>
+			</setHeader>
+			<choice>
+				<when>
+					<header>Authorization</header>
+					<to
+						uri="bean:BillingSystem?method=validateRequest(${headers.Authorization})" />
+					<log message="BODY = ${body}" />
+					<to
+						uri="bean:BillingSystem?method=getBillBySerialNumber(${headers.billSerialNumber}, ${body})" />
+				</when>
+				<otherwise>
+					<setHeader headerName="Authorization">
+						<constant>null</constant>
+					</setHeader>
+					<to
+						uri="bean:BillingSystem?method=validateRequest(${headers.Authorization})" />
+				</otherwise>
+			</choice>
+		</route>
+
+		<route autoStartup="true" id="doPayment">
+			<from uri="direct:doPayment" />
+			<setHeader headerName="billSerialNumber">
+				<groovy>def x = request.body.get('billSerialNumber') as String;</groovy>
+			</setHeader>
+			<setHeader headerName="contractNumber">
+				<groovy>def x = request.body.get('contractNumber') as String;</groovy>
+			</setHeader>
+			<setHeader headerName="billAmount">
+				<groovy>def x = request.body.get('billAmount') as String;</groovy>
+			</setHeader>
+			<setHeader headerName="billInterest">
+				<groovy>def x = request.body.get('billInterest') as String;</groovy>
+			</setHeader>
+			<setHeader headerName="paymentReferenceNumber">
+				<groovy>def x = request.body.get('paymentReferenceNumber') as String;</groovy>
+			</setHeader>
+			<choice>
+				<when>
+					<header>Authorization</header>
+					<to
+						uri="bean:BillingSystem?method=validateRequest(${headers.Authorization})" />
+
+					<to
+						uri="bean:BillingSystem?method=payBill(${headers.billSerialNumber},${headers.contractNumber}, ${headers.billAmount}, ${headers.billInterest}, ${headers.paymentReferenceNumber}, ${body})" />
+				</when>
+				<otherwise>
+					<setHeader headerName="Authorization">
+						<constant>null</constant>
+					</setHeader>
+					<to
+						uri="bean:BillingSystem?method=validateRequest(${headers.Authorization})" />
+				</otherwise>
+			</choice>
+		</route>
+
+		<route autoStartup="true" id="validateContract">
+			<from uri="direct:validateContract" />
+			<setHeader headerName="contractNumber">
+				<groovy>def x = request.body.get('contractNumber') as String;</groovy>
+			</setHeader>
+			<choice>
+				<when>
+					<header>Authorization</header>
+					<to
+						uri="bean:BillingSystem?method=validateRequest(${headers.Authorization})" />
+
+					<to
+						uri="bean:BillingSystem?method=getBillsByContractNumber(${headers.contractNumber}, ${body})" />
+				</when>
+				<otherwise>
+					<setHeader headerName="Authorization">
+						<constant>null</constant>
+					</setHeader>
+					<to
+						uri="bean:BillingSystem?method=validateRequest(${headers.Authorization})" />
+				</otherwise>
+			</choice>
+		</route>
+		<!-- <route id="readPaymentsFromFolder"> <from id="readFromFolder" uri="file:{{payment.incoming}}?moveFailed={{payment.error}}/${file:name.noext}-${date:now:yyyyMMddHHmm}.${file:ext}&amp;move={{payment.done}}/${file:name.noext}-${date:now:yyyyMMddHHmm}.${file:ext}&amp;delay=3s&amp;autoCreate=true"/> 
+			<setHeader headerName="FileName" id="_setHeader2"> <simple>${file:name.noext}-${date:now:yyyyMMddHHmm}.${file:ext}</simple> 
+			</setHeader> <unmarshal id="_unmarshal1"> <csv delimiter="," headerDisabled="true" 
+			useMaps="true"/> </unmarshal> <log id="_log1" message="HEADERS CSV = ${headers}"/> 
+			<log id="_log2" message="BODY CSV = ${body}"/> <split id="_split1"> <simple>${body}</simple> 
+			<to id="_to4" uri="sql:{{insert.into.bill}}?noop=true"/> </split> </route> -->
+	</camelContext>
+	<bean
+		class="org.apache.camel.component.jetty9.JettyHttpComponent9"
+		id="jetty">
+		<!-- <property name="sslContextParameters" ref="sslContextParameters" /> -->
+	</bean>
+	<bean class="fshn.edu.al.BillingSystem" id="BillingSystem" />
+</beans>
